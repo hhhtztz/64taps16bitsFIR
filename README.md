@@ -1,1 +1,2 @@
-# EE4823
+# 64taps16bitsFIR
+EE4823 Project -Columbia Engineering
