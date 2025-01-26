@@ -1,0 +1,55 @@
+module FixedToFloat(
+    input [31:0] fixed_point,  // 32-bit fixed-point input (Q16.16 format)
+    output reg [31:0] float_out // 32-bit floating-point output (IEEE 754 format)
+);
+
+    reg [31:0] mantissa;  // Mantissa (23 bits for IEEE 754)
+    reg [7:0] exponent;   // Exponent (8 bits for IEEE 754)
+    reg sign_bit;         // Sign bit (1 bit for IEEE 754)
+    
+    always @(*) begin
+        // Initialize the output
+        float_out = 32'b0;
+        
+        // Determine the sign bit
+        sign_bit = fixed_point[31];  // MSB of fixed_point indicates the sign
+        
+        // Get the absolute value of the fixed-point number
+        reg [31:0] abs_fixed_point = (sign_bit) ? (~fixed_point + 1) : fixed_point;
+        
+        // Convert the integer part of the fixed-point number
+        integer integer_part = abs_fixed_point[31:16];  // Integer part (Q16.16 format)
+        integer fractional_part = abs_fixed_point[15:0]; // Fractional part
+        
+        // Normalize the value
+        if (integer_part == 0 && fractional_part == 0) begin
+            exponent = 8'b0;      // Zero case
+            mantissa = 23'b0;     // Mantissa is 0
+        end else begin
+            // Find exponent by determining the position of the most significant 1 bit
+            integer temp_exponent = 0;
+            reg [31:0] temp_value = abs_fixed_point;
+            while (temp_value[31] == 0) begin
+                temp_value = temp_value << 1;
+                temp_exponent = temp_exponent + 1;
+            end
+            
+            // Set the exponent (biased by 127 for IEEE 754 single precision)
+            exponent = 8'd127 + temp_exponent;
+            
+            // Shift the number to the left so the MSB is the first bit of the mantissa
+            mantissa = abs_fixed_point << temp_exponent;
+            mantissa = mantissa[30:8]; // Use bits 30 to 8 for the mantissa (23 bits)
+        end
+        
+        // Set the sign bit
+        float_out[31] = sign_bit;
+        
+        // Set the exponent
+        float_out[30:23] = exponent;
+        
+        // Set the mantissa
+        float_out[22:0] = mantissa;
+    end
+
+endmodule
